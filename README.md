@@ -1,17 +1,16 @@
 # Rust-CLI-Task-Manager
 
-## Overview
-A command-line task manager with persistent JSON storage, demonstrating Rust ownership, serialization, and file I/O.
+![CI](https://github.com/skylerblue333/Rust-CLI-Task-Manager/workflows/CI/badge.svg)
 
-## Quick Start (1-Click Build)
-
-```bash
-git clone https://github.com/skylerblue333/Rust-CLI-Task-Manager.git
-cd Rust-CLI-Task-Manager
-cargo run
-```
+High-performance, memory-safe task manager API built with Actix-Web.
 
 ## Features
-- Persistent storage via JSON
-- `serde` serialization/deserialization
-- Idiomatic Rust error handling
+- Zero-cost abstractions using Actix-Web
+- Thread-safe Mutex state management
+- Dockerized minimal footprint deployment
+
+## Quick Start
+```bash
+cargo run
+curl http://localhost:8080/health
+```
