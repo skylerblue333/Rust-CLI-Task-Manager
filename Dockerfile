@@ -1,10 +1,9 @@
-FROM rust:1.74-slim AS builder
-WORKDIR /app
+FROM rust:1.73 as builder
+WORKDIR /usr/src/app
 COPY . .
 RUN cargo build --release
 
 FROM debian:bookworm-slim
-WORKDIR /app
-COPY --from=builder /app/target/release/rust-cli-task-manager .
+COPY --from=builder /usr/src/app/target/release/app /usr/local/bin/app
 EXPOSE 8080
-CMD ["./rust-cli-task-manager"]
+CMD ["app"]
