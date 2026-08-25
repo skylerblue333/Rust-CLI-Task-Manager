@@ -1,9 +1,13 @@
-FROM rust:1.73 as builder
-WORKDIR /usr/src/app
-COPY . .
-RUN cargo build --release
+FROM rust:1.98-bookworm AS builder
+WORKDIR /app
+COPY Cargo.toml ./
+COPY src ./src
+RUN cargo generate-lockfile && cargo build --release --locked
 
-FROM debian:bookworm-slim
-COPY --from=builder /usr/src/app/target/release/app /usr/local/bin/app
-EXPOSE 8080
-CMD ["app"]
+FROM gcr.io/distroless/cc-debian12:nonroot
+WORKDIR /data
+COPY --from=builder /app/target/release/sky-tasks /usr/local/bin/sky-tasks
+ENV SKY_TASKS_FILE=/data/tasks.json
+USER nonroot:nonroot
+ENTRYPOINT ["/usr/local/bin/sky-tasks"]
+CMD ["help"]
