@@ -1,64 +1,67 @@
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
-use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
+use sky_cli_tasks::TaskStore;
+use std::env;
+use std::path::PathBuf;
+use std::process;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct Task {
-    id: u64,
-    title: String,
-    completed: bool,
+fn usage() -> &'static str {
+    "Usage:\n  sky-tasks add <title>\n  sky-tasks list\n  sky-tasks complete <id>\n  sky-tasks remove <id>\n\nStorage path: SKY_TASKS_FILE (default: ./tasks.json)"
 }
 
-#[derive(Clone, Default)]
-struct AppState {
-    tasks: Arc<Mutex<Vec<Task>>>,
+fn parse_id(raw: Option<String>) -> Result<u64, String> {
+    raw.ok_or_else(|| "missing task id".to_string())?
+        .parse::<u64>()
+        .map_err(|_| "task id must be a positive integer".to_string())
+        .and_then(|id| if id == 0 { Err("task id must be greater than zero".to_string()) } else { Ok(id) })
 }
 
-#[derive(Debug, Deserialize)]
-struct CreateTask {
-    title: String,
-}
+fn run() -> Result<(), String> {
+    let mut args = env::args().skip(1);
+    let command = args.next().unwrap_or_else(|| "help".to_string());
+    let path = env::var("SKY_TASKS_FILE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("tasks.json"));
+    let mut store = TaskStore::load(&path)?;
 
-#[get("/health")]
-async fn health() -> impl Responder {
-    HttpResponse::Ok().json(serde_json::json!({"status": "healthy", "service": "Rust-CLI-Task-Manager"}))
-}
-
-#[get("/api/v1/tasks")]
-async fn list_tasks(state: web::Data<AppState>) -> impl Responder {
-    match state.tasks.lock() {
-        Ok(tasks) => HttpResponse::Ok().json(tasks.clone()),
-        Err(_) => HttpResponse::InternalServerError().finish(),
-    }
-}
-
-async fn create_task(state: web::Data<AppState>, payload: web::Json<CreateTask>) -> impl Responder {
-    let title = payload.title.trim();
-    if title.is_empty() || title.len() > 500 {
-        return HttpResponse::BadRequest().json(serde_json::json!({"error": "title must contain 1-500 characters"}));
-    }
-    match state.tasks.lock() {
-        Ok(mut tasks) => {
-            let id = tasks.iter().map(|task| task.id).max().unwrap_or(0) + 1;
-            let task = Task { id, title: title.to_owned(), completed: false };
-            tasks.push(task.clone());
-            HttpResponse::Created().json(task)
+    match command.as_str() {
+        "add" => {
+            let title = args.collect::<Vec<_>>().join(" ");
+            let task = store.add(&title)?;
+            store.save(&path)?;
+            println!("added #{}: {}", task.id, task.title);
         }
-        Err(_) => HttpResponse::InternalServerError().finish(),
+        "list" => {
+            for task in store.list() {
+                let marker = if task.completed { "x" } else { " " };
+                println!("[{}] #{} {}", marker, task.id, task.title);
+            }
+        }
+        "complete" => {
+            let id = parse_id(args.next())?;
+            if args.next().is_some() {
+                return Err("complete accepts exactly one task id".to_string());
+            }
+            let task = store.complete(id)?;
+            store.save(&path)?;
+            println!("completed #{}: {}", task.id, task.title);
+        }
+        "remove" => {
+            let id = parse_id(args.next())?;
+            if args.next().is_some() {
+                return Err("remove accepts exactly one task id".to_string());
+            }
+            let task = store.remove(id)?;
+            store.save(&path)?;
+            println!("removed #{}: {}", task.id, task.title);
+        }
+        "help" | "--help" | "-h" => println!("{}", usage()),
+        other => return Err(format!("unknown command: {other}\n\n{}", usage())),
     }
+    Ok(())
 }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    let state = AppState::default();
-    HttpServer::new(move || {
-        App::new()
-            .app_data(web::Data::new(state.clone()))
-            .service(health)
-            .service(list_tasks)
-            .route("/api/v1/tasks", web::post().to(create_task))
-    })
-    .bind(("0.0.0.0", 8080))?
-    .run()
-    .await
+fn main() {
+    if let Err(error) = run() {
+        eprintln!("error: {error}");
+        process::exit(2);
+    }
 }
