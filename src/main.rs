@@ -11,7 +11,13 @@ fn parse_id(raw: Option<String>) -> Result<u64, String> {
     raw.ok_or_else(|| "missing task id".to_string())?
         .parse::<u64>()
         .map_err(|_| "task id must be a positive integer".to_string())
-        .and_then(|id| if id == 0 { Err("task id must be greater than zero".to_string()) } else { Ok(id) })
+        .and_then(|id| {
+            if id == 0 {
+                Err("task id must be greater than zero".to_string())
+            } else {
+                Ok(id)
+            }
+        })
 }
 
 fn run() -> Result<(), String> {
