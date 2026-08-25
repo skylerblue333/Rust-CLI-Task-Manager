@@ -1,44 +1,68 @@
-<!-- PORTFOLIO PROJECT PROFILE: maintained by the repository owner -->
+# Sky CLI Tasks
 
-## Project profile and code-audit snapshot
+A focused local task-management CLI in Rust for the SKYCOIN4444 engineering lab.
 
-**What this is:** **Rust-CLI-Task-Manager** is a public repository described as: “Command-line task manager with persistent JSON storage. #SkyCoin4444 #AI #Blockchain #DevOps #Innovation” Its dominant language signals are **Rust (2 files)**.
+## Status
 
-**Why it has value:** Its value is best understood through the implementation evidence currently present in the repository: **16 tracked files** were observed in the shallow audit, with the source structure and existing documentation providing the project’s specific context. This README does not treat a prototype, experiment, or archive as a production system without supporting evidence.
+**Engineering beta.** The CLI supports bounded local task creation, deterministic numeric IDs, completion/removal, atomic JSON persistence, strict CI gates, dependency audit, and non-root container packaging. It does **not** claim multi-user collaboration, cloud sync, encryption at rest, distributed coordination, or production deployment.
 
-**Implementation evidence:** No test-related file was detected by filename heuristics.; 2 dependency or package manifest(s) detected; 2 build/CI/infrastructure signal(s) detected; and 3 documentation or governance file(s) detected. Test filenames observed include none detected. Dependency or package files include `Cargo.toml`, `package.json`. Build, CI, or infrastructure signals include `Dockerfile`, `.github/workflows/ci.yml`.
+## Commands
 
-**Current status:** The repository is tracked on the `main` branch. The existing source tree, configuration, tests, workflows, and documentation remain authoritative for supported behavior and maturity. A code audit is not a production-readiness certification, and the presence of a test or workflow file does not establish that all checks pass.
+```bash
+sky-tasks add "ship release notes"
+sky-tasks list
+sky-tasks complete 1
+sky-tasks remove 1
+```
 
-**Relationship to the wider portfolio:** This repository is one focused component of the broader Skyler Blue Spillers portfolio across AI, software engineering, cloud and DevOps, cybersecurity, blockchain, finance, education, social systems, and creative work. It may provide a service boundary, implementation pattern, experiment, archive, or reusable idea for related repositories. Treat repositories as technical dependencies only where documented interfaces and verified project requirements support that relationship.
+The storage path defaults to `./tasks.json`. Override it with:
 
-**Quality and security note:** No obvious secret-like pattern was detected by the limited static scan; this is not a substitute for a security audit. No TODO/FIXME marker was detected in the scanned text files.
+```bash
+export SKY_TASKS_FILE=/safe/path/tasks.json
+```
 
----
+## Data and safety boundaries
 
-# Rust Cli Task Manager
+- task titles must contain 1–200 characters
+- at most 10,000 tasks are loaded or created
+- IDs are monotonically allocated from the highest existing ID
+- writes go to a temporary file, are synced, then renamed over the target file
+- malformed JSON fails closed instead of silently discarding data
+- the application never executes task titles as shell commands
 
-![GitHub stars](https://img.shields.io/github/stars/skylerblue333/Rust-CLI-Task-Manager?style=flat-square)
-![GitHub license](https://img.shields.io/github/license/skylerblue333/Rust-CLI-Task-Manager?style=flat-square)
+Atomic rename semantics are filesystem-dependent. Keep the task file on a local filesystem and maintain backups if the data matters.
 
-## 🌟 Overview
-**Rust-CLI-Task-Manager** is a professional-grade project within the **SkyCoin4444** ecosystem. It focuses on delivering high-value solutions in the domain of **Rust**.
+## Verification
 
-## 🚀 Key Features
-- **Scalable Architecture**: Designed for enterprise-level growth and performance.
-- **Modern Standards**: Implements best practices for clean code and maintainability.
-- **Robust Integration**: Built to work seamlessly within modern cloud-native environments.
+Requires Rust 1.98 for the declared CI baseline.
 
-## 🛠️ Technology Stack
-- **Primary Domain**: Rust
-- **Ecosystem**: SkyCoin4444 Digital Platform
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-targets --all-features
+cargo build --release
+```
 
-## 📂 Structure
-The project is organized into a modular structure to ensure clarity and ease of development.
+GitHub Actions additionally runs `cargo audit`, a CLI smoke test, a Docker build, and verifies that the runtime image is non-root.
 
-## 👨‍💻 Author
-**Skyler Blue Spillers**
-*Professional Chess Player & Software Engineer*
+## Container
 
----
-*Powered by SkyCoin4444*
+```bash
+docker build -t sky-cli-tasks .
+docker run --rm -v "$PWD/data:/data" sky-cli-tasks add "container task"
+docker run --rm -v "$PWD/data:/data" sky-cli-tasks list
+```
+
+The runtime uses the distroless `nonroot` identity. Mount `/data` writable if persistence is required.
+
+## SKYCOIN4444 integration
+
+Keep this repository independently reusable. If the broader ecosystem needs task data, integrate through an adapter that reads/writes an explicit task contract rather than copying the CLI implementation into a flagship application.
+
+## Security
+
+Task titles are data only and are never executed. Treat the JSON file as user data; filesystem permissions, backup policy, and host encryption remain deployment responsibilities. See `SECURITY.md`.
+
+## License
+
+See `LICENSE`.
