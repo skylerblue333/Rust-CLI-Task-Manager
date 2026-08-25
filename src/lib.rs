@@ -27,7 +27,8 @@ impl TaskStore {
         let mut buf = String::new();
         file.read_to_string(&mut buf)
             .map_err(|e| format!("read task file: {e}"))?;
-        let store: Self = serde_json::from_str(&buf).map_err(|e| format!("parse task file: {e}"))?;
+        let store: Self =
+            serde_json::from_str(&buf).map_err(|e| format!("parse task file: {e}"))?;
         if store.tasks.len() > MAX_TASKS {
             return Err("task file exceeds maximum supported task count".to_string());
         }
@@ -39,7 +40,8 @@ impl TaskStore {
             fs::create_dir_all(parent).map_err(|e| format!("create task directory: {e}"))?;
         }
         let tmp = temp_path(path);
-        let payload = serde_json::to_vec_pretty(self).map_err(|e| format!("serialize tasks: {e}"))?;
+        let payload =
+            serde_json::to_vec_pretty(self).map_err(|e| format!("serialize tasks: {e}"))?;
         let mut file = File::create(&tmp).map_err(|e| format!("create temp task file: {e}"))?;
         file.write_all(&payload)
             .map_err(|e| format!("write temp task file: {e}"))?;
